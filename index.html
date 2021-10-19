@@ -43,6 +43,7 @@
         <button id="redoButton" class="control-button">Redo</button>
         <button id="codeEditor" class="control-button">Code editor</button>
         <button id="compileHtmlClient" class="control-button">Compile Template</button>
+        <button id="previewButton" class="control-button">Preview</button>
   <!--<button id="saveButton" class="control-button">Save Template</button>-->      
         <span id="changeHistoryContainer" style="display: none;">Last change: <a id="changeHistoryLink"></a></span>
     </div>
@@ -56,6 +57,7 @@
     <script src="https://code.jquery.com/jquery-3.1.1.min.js" integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js" integrity="sha256-T0Vest3yCU7pafRw9r+settMBX6JkKN06dqBnpQ8d30=" crossorigin="anonymous"></script>
     <script type="application/javascript" src="notifications.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     
     <script>
         // Utility methods
@@ -82,6 +84,49 @@
                 });
             });
         }
+        function buildDynamicHTML(data){
+            var htmlMarkup = getHtmlBlockAPI();           
+            replacePlaceHolder(data).forEach(item => {
+               htmlMarkup = htmlMarkup.replace(new RegExp(item.key,"gi"), item.value);
+            });
+            return htmlMarkup;
+        }
+
+        function replacePlaceHolder(data){
+            return [
+            {key: '#FLIGHT_ID#', value: data.id},
+            {key: '#JOURNEY_DATE#', value: data.journey_date},
+            {key: '#DEPARTURE#', value: data.departure},
+            {key: '#DESTINATION#', value: data.destination},
+            {key: '#DEPT_CODE#', value: data.dept_code},
+            {key: '#DEPARTURE_TIME#', value:  data.departure_time},
+            {key: '#DEST_CODE#', value: data.dest_code},
+            {key: '#ARRV_TIME#', value: data.arrival_time},
+            {key: '#LAYOVER_INFO#', value: data.layover_info},
+            {key: '#TOTAL_JOURNEY_TIME#', value: data.total_journey_time},
+            {key: '#FLIGHT_NO#', value: data.flight_no},
+            {key: '#FLIGHT_NAME#', value: data.flight_name}
+        ];
+        }
+        function getHtmlBlockAPI(){
+
+            return `<tr class="order-details-#FLIGHT_ID#" style="border:1px solid">
+            <td style="width:100%;">
+        <div style="padding:5px"><strong>Flight #FLIGHT_ID# : &nbsp&nbsp #JOURNEY_DATE#</strong></div>
+        <div style="padding:5px"><small style="color:#555">#DEPARTURE#  &nbsp&nbsp&nbsp #DESTINATION# </small></div>
+        <div style="padding:5px"><strong>#DEPT_CODE#  &nbsp&nbsp&nbsp #DEPARTURE_TIME# &nbsp&nbsp&nbsp
+        -> &nbsp&nbsp&nbsp #DEST_CODE# &nbsp&nbsp&nbsp  #ARRV_TIME#
+        &nbsp&nbsp&nbsp #LAYOVER_INFO#  &nbsp&nbsp&nbsp #TOTAL_JOURNEY_TIME#</strong></div>
+        <div style="padding:5px"><small style="color:#555">#FLIGHT_NO#  operated by  #FLIGHT_NAME#</small></div></td></tr>`
+        }
+        function getDefaultLayoutForBlock(){
+            return `<tr>
+                                <td>
+                                    <span class="es-icon-image" title="flightCustomBlock"></span>
+                                    <span class="block-text">Flight Block Added</span>
+                                </td>
+                            </tr>`
+        }
     </script>
 
     <script>
@@ -99,8 +144,8 @@
             script.src = 'https://plugins.stripo.email/static/latest/stripo.js';
             script.onload = function () {
                 window.Stripo.init({
-                    extensions:[{globalName: 'DemoHeaderBlockExtension',url:'https://tavisca-sdange.github.io/CustomBlock/main.extension.js'},
-                                {globalName: 'ProductBlockExtension',url:'https://tavisca-sdange.github.io/ProductBlockExtension/main.ProductBlock.extension.js'}],
+                    extensions:[{globalName: 'DemoHeaderBlockExtension',url:'https://tavisca-sdange.github.io/CustomBlockExtension/main.extension.js'},
+                                {globalName: 'ProductBlockExtension',url:'https://tavisca-sdange.github.io/ProductBlock/main.extension_Product.js'}],
                 productDemoBlock: {
                 enabled: true,
                 groups: [{
@@ -161,7 +206,57 @@
                 if (error) {
                     alert('Can not compile HTML: ' + error);
                 } else {
-                     console.log('Compiled HTML: ', html);
+                    var parser = new DOMParser();
+	            var doc = parser.parseFromString(html, 'text/html');
+                $(doc).find('#flightCustomBlock> tbody').empty();   
+                $(doc).find('#flightCustomBlock> tbody').append(getDefaultLayoutForBlock());              
+                const win = window.open("","win",`width=800,height=400,screenX=200,screenY=200`);
+                win.document.write(doc.documentElement.outerHTML); 
+                }
+            });
+        });
+        document.querySelector("#previewButton").addEventListener('click', function() {
+            // This is the way to get compiled HTML code on client side
+            window.StripoApi.compileEmail(function(error, html) {
+                if (error) {
+                    alert('Can not compile HTML: ' + error);
+                } else {
+                    var data = {
+            "id": 1,
+            "journey_date": "11/11/2021",
+            "departure": "Madrid",
+            "dept_code": "MAD",
+            "destination": "Rome",
+            "dest_code": "FCO",
+            "departure_time": "8:30PM",
+            "arrival_time": "10.25PM",
+            "layover_info": "Nonstop",
+            "total_journey_time": "2h 35m",
+            "flight_no": "Iberia 3238",
+            "flight_name": "IBERIA - LINEAS AEREAS DE ESPANA",
+            "iconUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/P-51_Mustang_edit1.jpg/330px-P-51_Mustang_edit1.jpg"
+        };
+    //     var parser = new DOMParser();
+	// var doc = parser.parseFromString(html, 'text/html');
+    //    $(doc).find('#flightCustomBlock> tbody').empty();
+    //    $(doc).find('#flightCustomBlock> tbody').append('<tr class="order-details'+data.id+'" style="border:1px solid"></tr>');
+    //     var $html = $('<td style="width:100%;"> \
+    //     <div style="padding:5px"><strong>Flight '+ data.id + ':' + '&nbsp&nbsp' + data.journey_date + '</strong></div> \
+    //     <div style="padding:5px"><small style="color:#555">'+ data.departure + '&nbsp&nbsp&nbsp' + data.destination + '</small></div> \
+    //     <div style="padding:5px"><strong>'+ data.dept_code + '&nbsp&nbsp&nbsp' + data.departure_time + '&nbsp&nbsp&nbsp' + 
+    //     '->' + '&nbsp&nbsp&nbsp' + data.dest_code + '&nbsp&nbsp&nbsp' + data.arrival_time + 
+    //     '&nbsp&nbsp&nbsp' + data.layover_info + '&nbsp&nbsp&nbsp' + data.total_journey_time + '</strong></div> \
+    //     <div style="padding:5px"><small style="color:#555">'+ data.flight_no + ' operated by ' + data.flight_name + '</small></div></td>');
+    //     var newTrElement = '.order-details'+data.id;
+    //     $(doc).find(newTrElement).append($html);
+    //     const win = window.open("","win",`width=800,height=400,screenX=200,screenY=200`);
+    //     win.document.write(doc.documentElement.outerHTML);  
+                var parser = new DOMParser();
+	            var doc = parser.parseFromString(html, 'text/html');
+                $(doc).find('#flightCustomBlock> tbody').empty();            
+                $(doc).find('#flightCustomBlock> tbody').append(buildDynamicHTML(data));
+                const win = window.open("","win",`width=800,height=400,screenX=200,screenY=200`);
+                win.document.write(doc.documentElement.outerHTML); 
                 }
             });
         });
